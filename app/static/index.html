@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Livestock disease check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1e2b25;
+  --ink-soft: #55655c;
+  --paper: #f1f4ee;
+  --card: #ffffff;
+  --line: #d5ddd2;
+  --field: #2f6b4f;
+  --field-dark: #22513b;
+  --tag: #f4c430;
+  --tag-dark: #d9a90f;
+  --barn: #a93a2b;
+  --barn-bg: #fbeeea;
+  --font: "Bricolage Grotesque", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 400 16px/1.5 var(--font);
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--field); outline-offset: 2px; }
+
+.wrap { max-width: 1120px; margin: 0 auto; padding: 32px 20px 56px; }
+header h1 { margin: 0 0 6px; font-size: clamp(28px, 4vw, 40px); line-height: 1.1; font-weight: 700; letter-spacing: -0.02em; }
+header p { margin: 0; color: var(--ink-soft); max-width: 60ch; }
+
+h2 { margin: 0 0 12px; font-size: 18px; font-weight: 600; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+
+/* Examples */
+.examples { margin: 28px 0 24px; }
+.case-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.case {
+  text-align: left; background: var(--card); border: 1px solid var(--line);
+  border-left: 6px solid var(--field); border-radius: 4px 12px 12px 4px; padding: 12px 14px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.case:hover { border-left-color: var(--tag-dark); box-shadow: 0 2px 10px rgba(30,43,37,.1); }
+.case[aria-pressed="true"] { border-left-color: var(--tag); background: #fffbe9; }
+.case b { display: block; font-weight: 600; }
+.case span { display: block; font-size: 14px; color: var(--ink-soft); }
+
+/* Layout */
+.grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.result-col { position: sticky; top: 16px; }
+@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } .result-col { position: static; } }
+
+.field { margin-bottom: 20px; }
+.field > label, .field > .lbl { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 8px; }
+.field .val { font-weight: 400; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+.seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.seg button { padding: 9px 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); text-transform: capitalize; }
+.seg button[aria-pressed="true"] { background: var(--field); border-color: var(--field); color: #fff; }
+
+input[type=range] { width: 100%; accent-color: var(--field); }
+
+.group { margin-bottom: 14px; }
+.group h3 { margin: 0 0 6px; font-size: 14px; font-weight: 600; color: var(--ink-soft); }
+.tags { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Ear-tag symptom chips */
+.tag {
+  position: relative; padding: 7px 14px 7px 32px; border: 1.5px solid var(--line);
+  border-radius: 6px 16px 16px 6px; background: var(--paper); font-size: 15px;
+  transition: background .12s, border-color .12s, transform .12s;
+}
+.tag::before {
+  content: ""; position: absolute; left: 11px; top: 50%; width: 10px; height: 10px; margin-top: -5px;
+  border-radius: 50%; background: var(--card); border: 1.5px solid var(--line);
+}
+.tag:hover:not(:disabled) { border-color: var(--tag-dark); }
+.tag[aria-pressed="true"] { background: var(--tag); border-color: var(--tag-dark); font-weight: 600; }
+.tag[aria-pressed="true"]::before { border-color: var(--tag-dark); }
+.tag:disabled { opacity: .4; cursor: not-allowed; }
+
+.actions { display: flex; gap: 10px; align-items: center; margin-top: 6px; }
+.primary { background: var(--field); color: #fff; border: 0; border-radius: 8px; padding: 11px 22px; font-weight: 600; }
+.primary:hover:not(:disabled) { background: var(--field-dark); }
+.primary:disabled { opacity: .5; cursor: not-allowed; }
+.ghost { background: none; border: 0; color: var(--ink-soft); text-decoration: underline; padding: 8px; }
+.count { margin-left: auto; color: var(--ink-soft); font-size: 14px; font-variant-numeric: tabular-nums; }
+
+/* Results */
+.empty { color: var(--ink-soft); margin: 0; }
+.top-label { color: var(--ink-soft); font-size: 14px; margin: 0; }
+.top { margin: 2px 0 2px; font-size: 32px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; }
+.top-conf { margin: 0 0 18px; color: var(--ink-soft); }
+.bar { margin-bottom: 10px; }
+.bar-head { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 3px; }
+.bar-head span:last-child { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.track { height: 10px; background: var(--paper); border-radius: 5px; overflow: hidden; }
+.fill { height: 100%; background: var(--line); border-radius: 5px; transition: width .35s ease; }
+.fill.lead { background: var(--field); }
+.note { margin: 14px 0 0; padding: 10px 12px; border-left: 4px solid var(--barn); background: var(--barn-bg); border-radius: 0 8px 8px 0; font-size: 14px; }
+.error { color: var(--barn); font-weight: 600; margin: 0; }
+.disclaimer { margin: 16px 0 0; font-size: 13px; color: var(--ink-soft); }
+footer { margin-top: 24px; font-size: 13px; color: var(--ink-soft); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Livestock disease check</h1>
+    <p>Choose the animal, its temperature and up to three symptoms. The model ranks the most likely diseases from cattle, buffalo, goat and sheep records.</p>
+  </header>
+
+  <section class="examples" aria-labelledby="ex-h">
+    <h2 id="ex-h">Try an example</h2>
+    <div class="case-row" id="cases"></div>
+  </section>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="form-h">
+      <h2 id="form-h">Animal details</h2>
+
+      <div class="field">
+        <span class="lbl">Animal</span>
+        <div class="seg" id="animals" role="group" aria-label="Animal"></div>
+      </div>
+      <div class="field">
+        <label for="age">Age <span class="val" id="age-val"></span></label>
+        <input type="range" id="age" min="1" max="15" step="1" value="4">
+      </div>
+      <div class="field">
+        <label for="temp">Body temperature <span class="val" id="temp-val"></span></label>
+        <input type="range" id="temp" min="100" max="105" step="0.1" value="102.5">
+      </div>
+
+      <div class="field" style="margin-bottom:0">
+        <span class="lbl">Symptoms <span class="val" id="sym-count"></span></span>
+        <div id="symptoms"></div>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="go" disabled>Check symptoms</button>
+        <button class="ghost" id="clear" type="button">Clear</button>
+      </div>
+    </section>
+
+    <div class="result-col">
+      <section class="panel" aria-labelledby="res-h" aria-live="polite">
+        <h2 id="res-h">Result</h2>
+        <div id="result"><p class="empty">Pick an example above, or select symptoms and choose Check symptoms.</p></div>
+      </section>
+      <footer id="foot"></footer>
+    </div>
+  </div>
+</div>
+
+<script>
+const MAX_SYMPTOMS = 3;
+const GROUPS = {
+  "General signs": ["depression", "loss of appetite", "fatigue", "chills", "sweats"],
+  "Breathing and chest": ["cough", "nasal discharge", "shortness of breath", "chest discomfort", "crackling sound"],
+  "Swelling": ["swelling in abdomen", "swelling in extremities", "swelling in limb", "swelling in muscle", "swelling in neck"],
+  "Mouth": ["blisters on gums", "blisters on mouth", "blisters on tongue", "sores on gums", "sores on mouth", "sores on tongue"],
+  "Hooves and movement": ["blisters on hooves", "sores on hooves", "difficulty walking", "lameness"],
+  "Skin": ["painless lumps"],
+};
+const EXAMPLES = [
+  { title: "Fever and hard breathing", sub: "Goat, 4 years, 104.2 °F", animal: "goat", age: 4, temp: 104.2, symptoms: ["chills", "fatigue", "shortness of breath"] },
+  { title: "Swollen muscle, limping", sub: "Cow, 2 years, 103.5 °F", animal: "cow", age: 2, temp: 103.5, symptoms: ["crackling sound", "swelling in muscle", "lameness"] },
+  { title: "Mouth blisters, won't walk", sub: "Cow, 6 years, 103.0 °F", animal: "cow", age: 6, temp: 103.0, symptoms: ["blisters on tongue", "sores on mouth", "difficulty walking"] },
+  { title: "Lumps and no appetite", sub: "Buffalo, 5 years, 102.8 °F", animal: "buffalo", age: 5, temp: 102.8, symptoms: ["painless lumps", "depression", "loss of appetite"] },
+  { title: "Coughing with runny nose", sub: "Cow, 3 years, 103.8 °F", animal: "cow", age: 3, temp: 103.8, symptoms: ["cough", "nasal discharge", "shortness of breath"] },
+];
+
+const $ = (id) => document.getElementById(id);
+const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+const el = (tag, props = {}, ...kids) => {
+  const n = Object.assign(document.createElement(tag), props);
+  kids.forEach((k) => n.append(k));
+  return n;
+};
+const state = { animal: "cow", age: 4, temp: 102.5, symptoms: [], demo: null };
+let meta = null;
+
+function renderAnimals() {
+  const box = $("animals"); box.replaceChildren();
+  meta.animals.forEach((a) => {
+    const b = el("button", { type: "button", textContent: a });
+    b.setAttribute("aria-pressed", state.animal === a);
+    b.onclick = () => { state.animal = a; state.demo = null; sync(); };
+    box.append(b);
+  });
+}
+
+function renderSymptoms() {
+  const box = $("symptoms"); box.replaceChildren();
+  const known = new Set(meta.symptoms), used = new Set();
+  const groups = Object.entries(GROUPS).map(([name, list]) => [name, list.filter((s) => known.has(s))]);
+  const rest = meta.symptoms.filter((s) => !groups.some(([, l]) => l.includes(s)));
+  if (rest.length) groups.push(["Other", rest]);
+  groups.filter(([, l]) => l.length).forEach(([name, list]) => {
+    const tags = el("div", { className: "tags" });
+    list.forEach((s) => {
+      const on = state.symptoms.includes(s);
+      const b = el("button", { type: "button", className: "tag", textContent: s });
+      b.setAttribute("aria-pressed", on);
+      b.disabled = !on && state.symptoms.length >= MAX_SYMPTOMS;
+      b.onclick = () => {
+        state.symptoms = on ? state.symptoms.filter((x) => x !== s) : [...state.symptoms, s];
+        state.demo = null; sync();
+      };
+      tags.append(b);
+    });
+    box.append(el("div", { className: "group" }, el("h3", { textContent: name }), tags));
+  });
+}
+
+function renderCases() {
+  const box = $("cases"); box.replaceChildren();
+  EXAMPLES.forEach((ex, i) => {
+    const b = el("button", { type: "button", className: "case" }, el("b", { textContent: ex.title }), el("span", { textContent: ex.sub }),
+      el("span", { textContent: ex.symptoms.join(", ") }));
+    b.setAttribute("aria-pressed", state.demo === i);
+    b.onclick = () => {
+      Object.assign(state, { animal: ex.animal, age: ex.age, temp: ex.temp, symptoms: [...ex.symptoms], demo: i });
+      sync(); predict();
+    };
+    box.append(b);
+  });
+}
+
+function sync() {
+  $("age").value = state.age; $("temp").value = state.temp;
+  $("age-val").textContent = `${state.age} ${state.age === 1 ? "year" : "years"}`;
+  $("temp-val").textContent = `${Number(state.temp).toFixed(1)} °F`;
+  $("sym-count").textContent = `${state.symptoms.length} of ${MAX_SYMPTOMS} selected`;
+  $("go").disabled = state.symptoms.length === 0;
+  renderAnimals(); renderSymptoms(); renderCases();
+}
+
+async function predict() {
+  const out = $("result");
+  out.replaceChildren(el("p", { className: "empty", textContent: "Checking…" }));
+  try {
+    const res = await fetch("/api/predict", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ animal: state.animal, age: state.age, temperature: state.temp, symptoms: state.symptoms }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : "The request was not valid. Check the inputs and try again.");
+    showResult(data);
+  } catch (e) {
+    out.replaceChildren(el("p", { className: "error", textContent: e.message || "Could not reach the server. Check that it is running." }));
+  }
+}
+
+function showResult(d) {
+  const out = $("result"); out.replaceChildren();
+  const pct = (p) => (p * 100).toFixed(1) + "%";
+  out.append(
+    el("p", { className: "top-label", textContent: "Most likely" }),
+    el("p", { className: "top", textContent: cap(d.prediction) }),
+    el("p", { className: "top-conf", textContent: `${pct(d.confidence)} model confidence` }),
+  );
+  d.probabilities.forEach((r, i) => {
+    const fill = el("div", { className: "fill" + (i === 0 ? " lead" : "") });
+    fill.style.width = "0%";
+    requestAnimationFrame(() => (fill.style.width = Math.max(r.probability * 100, 0.5) + "%"));
+    out.append(el("div", { className: "bar" },
+      el("div", { className: "bar-head" }, el("span", { textContent: cap(r.disease) }), el("span", { textContent: pct(r.probability) })),
+      el("div", { className: "track" }, fill)));
+  });
+  d.notes.forEach((n) => out.append(el("p", { className: "note", textContent: n })));
+  out.append(el("p", { className: "disclaimer", textContent: "This is a screening aid, not a diagnosis. Confirm with a veterinarian." }));
+}
+
+$("age").oninput = (e) => { state.age = +e.target.value; state.demo = null; $("age-val").textContent = `${state.age} ${state.age === 1 ? "year" : "years"}`; renderCases(); };
+$("temp").oninput = (e) => { state.temp = +e.target.value; state.demo = null; $("temp-val").textContent = `${state.temp.toFixed(1)} °F`; renderCases(); };
+$("go").onclick = predict;
+$("clear").onclick = () => {
+  Object.assign(state, { symptoms: [], demo: null });
+  $("result").replaceChildren(el("p", { className: "empty", textContent: "Pick an example above, or select symptoms and choose Check symptoms." }));
+  sync();
+};
+
+(async () => {
+  try {
+    meta = await (await fetch("/api/meta")).json();
+    $("age").min = meta.age_range[0]; $("age").max = meta.age_range[1];
+    $("temp").min = meta.temp_range[0]; $("temp").max = meta.temp_range[1];
+    const m = meta.metrics;
+    $("foot").textContent = `Logistic regression trained on ${m.train_rows.toLocaleString()} records. Accuracy on ${m.test_rows.toLocaleString()} unseen records: ${(m.accuracy * 100).toFixed(1)}%.`;
+    sync();
+  } catch (e) {
+    $("result").replaceChildren(el("p", { className: "error", textContent: "Could not load model details. Check that the server is running." }));
+  }
+})();
+</script>
+</body>
+</html>
